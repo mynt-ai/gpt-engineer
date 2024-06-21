@@ -23,6 +23,7 @@ from prompt_toolkit import (
     HTML,
     print_formatted_text,
 )
+from prompt_toolkit.shortcuts import input_dialog
 from prompt_toolkit.validation import ValidationError, Validator
 from prompt_toolkit.completion import WordCompleter
 
@@ -43,7 +44,13 @@ class FeatureValidator(Validator):
 def print_feature_state(feature, file_selector):
 
     if not feature.has_description():
-        output = "No active feature."
+        output = """
+---
+
+<b>No active feature</b>
+
+---
+"""
     else:
         feature_description = feature.get_description()
         file_string = file_selector.get_pretty_selected_from_yaml()
@@ -91,14 +98,16 @@ def select_create_branch():
 
     # Using prompt to get user input
     result = session.prompt(
-        """Would you like to 
+        HTML(
+            """<b>Would you like to:</b>
 
-1 - Initialize new feature (on new branch)
-2 - Initialize new feature (on current branch)
+<green>1 - Initialize new feature (on new branch)</green>
+<green>2 - Initialize new feature (on current branch)</green>
 
-x - Exit
+<green>x - Exit</green>
 
-""",
+"""
+        ),
         completer=completer,
     ).lower()
 
@@ -111,6 +120,24 @@ x - Exit
     if result == "x":
         print("Exiting...")
         return
+
+
+def get_task_feedback_for_user() -> str:
+    """
+    Prompts the user for feedback on the generated tasks.
+
+    Returns
+    -------
+    str
+        The feedback provided by the user.
+    """
+    print_formatted_text(
+        HTML(
+            "<green>Please explain to the AI how to improve the generated tasks:</green>"
+        )
+    )
+    feedback = input()
+    return feedback
 
 
 def initialize_new_feature(ai: AI, feature: Feature, repository: Repository):
@@ -135,19 +162,32 @@ def initialize_new_feature(ai: AI, feature: Feature, repository: Repository):
 def update_user_file_selection(file_selector: FileSelector):
     file_selector.update_yaml_from_tracked_files()
     file_selector.open_yaml_in_editor()
-    input(
-        "Please edit the file selection for this feature and then press Enter to continue..."
+    print_formatted_text(
+        HTML(
+            "<green>Please edit the file selection for this feature and then press Enter to continue...</green>"
+        )
     )
+    input()
 
 
 def update_feature_description(feature: Feature):
     feature.open_feature_in_editor()
-    input("\nPlease edit the feature file and then press Enter to continue...")
+    print_formatted_text(
+        HTML(
+            "<green>\nPlease edit the feature file and then press Enter to continue...</green>"
+        )
+    )
+    input()
 
 
 def update_task_description(feature: Feature):
     feature.open_task_in_editor()
-    input("\nPlease edit the task file and then press Enter to continue...")
+    print_formatted_text(
+        HTML(
+            "<green>\nPlease edit the task file and then press Enter to continue...</green>"
+        )
+    )
+    input()
 
 
 def update_feature(feature: Feature, file_selector: FileSelector):
@@ -180,7 +220,8 @@ def update_feature(feature: Feature, file_selector: FileSelector):
         print("Sorry! Not implemented yet.")
     if result == "x":
         print("Exiting...")
-        return
+
+    return
 
 
 def initiate_new_task(ai, feature, git_context, file_selector):
@@ -188,7 +229,7 @@ def initiate_new_task(ai, feature, git_context, file_selector):
     Runs a flow which ends in the user saving a new task in the task.md file
     """
 
-    completer = WordCompleter(["1", "2", "3", "x"], ignore_case=True)
+    completer = WordCompleter(["1", "2", "x"], ignore_case=True)
     session = InputSession()
 
     result = session.prompt(
@@ -225,13 +266,20 @@ def get_git_context(repository):
         spinner.ok("✔")
 
 
-def suggest_new_tasks(ai, feature, git_context, file_selector):
+def suggest_new_tasks(ai, feature, git_context, file_selector, feedback=False):
 
     files = file_selector.get_included_as_file_repository()
 
+    if feedback:
+        user_feedback = get_task_feedback_for_user()
+    else:
+        user_feedback = None
+
     try:
         with yaspin(text="Generating suggested tasks...") as spinner:
-            response = generate_suggested_tasks(ai, feature, git_context, files)
+            response = generate_suggested_tasks(
+                ai, feature, git_context, files, user_hint=user_feedback
+            )
             spinner.ok("✔")  # Success message
     except Exception as e:
         raise RuntimeError("Error generating task suggestions.") from e
@@ -255,6 +303,7 @@ def suggest_new_tasks(ai, feature, git_context, file_selector):
 
 {task_list_message}
 
+<green>s: Suggest more tasks based on feedback</green>
 <green>c: Custom task</green>
 
 <green>x: Exit</green>
@@ -270,6 +319,8 @@ def suggest_new_tasks(ai, feature, git_context, file_selector):
         selected_task = tasks[int(result) - 1]
         feature.set_task(selected_task)
 
+    if result == "c":
+        update_task_description(feature)
     if result == "c":
         update_task_description(feature)
 
@@ -509,14 +560,14 @@ def review_changes(
         return
 
 
-def confirm_chat_feature():
+def confirm_chat_with_feature():
 
-    completer = WordCompleter(["1", "2", "3", "4", "5", "x"], ignore_case=True)
+    completer = WordCompleter(["1", "2", "x"], ignore_case=True)
     session = InputSession()
 
     result = session.prompt(
         HTML(
-            """<blue>Active Feature Detected</blue>
+            """<blue>Active feature present...</blue>
 
 <b>Would you like to:</b>
 
@@ -540,3 +591,35 @@ def confirm_chat_feature():
     if result == "x":
         print("exiting...")
         return
+
+
+# def confirm_simple_task():
+#     completer = WordCompleter(["1", "2", "3", "4", "5", "x"], ignore_case=True)
+#     session = InputSession()
+
+#     result = session.prompt(
+#         HTML(
+#             """<blue>No active feature present...</blue>
+
+# <b>Would you like to:</b>
+
+# <green>1 - Create new feature </green>
+# <green>2 - Implement task without feature</green>
+
+# <green>x - Exit</green>
+
+# """
+#         ),
+#         completer=completer,
+#     ).lower()
+
+#     print()
+
+#     if result == "1":
+#         return True
+#     if result == "2":
+#         return False
+
+#     if result == "x":
+#         print("exiting...")
+#         return

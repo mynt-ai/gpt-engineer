@@ -155,11 +155,13 @@ class FileSelector:
     Manages the active files in a project directory and creates a YAML file listing them.
     """
 
-    def __init__(self, project_path: str, repository: Repository):
+    def __init__(
+        self, project_path: str, repository: Repository, name: str = "files.yml"
+    ):
         self.project_path = project_path
         self.ai = AI("gpt-4o", temperature=0)
         self.repository = repository
-        self.yaml_path = Path(project_path) / ".feature" / "files.yml"
+        self.yaml_path = Path(memory_path(project_path)) / name
 
         if os.path.exists(self.yaml_path):
             return
