@@ -105,7 +105,7 @@ def file_selection_to_commented_yaml(selection: FileSelection) -> str:
     if not selection.excluded_files:
         tree = paths_to_tree(selection.included_files)
 
-        return yaml.dump(tree, sort_keys=False)
+        return yaml.dump(tree, sort_keys=False, width=10000)
 
     all_files = list(selection.included_files) + list(selection.excluded_files)
 
@@ -131,7 +131,7 @@ def file_selection_to_commented_yaml(selection: FileSelection) -> str:
 
     mark_excluded_files(current_tree)
 
-    content = yaml.dump(current_tree, sort_keys=False)
+    content = yaml.dump(current_tree, sort_keys=False, width=10000)
 
     # Find all files marked for commenting - add comment and remove the mark.
     def comment_marked_files(yaml_content):

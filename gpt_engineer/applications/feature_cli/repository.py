@@ -62,23 +62,38 @@ class Repository:
         """
         current_branch = self.repo.active_branch
 
-        # Get the tracking branch (e.g., 'origin/master')
-        tracking_branch = current_branch.tracking_branch()
-        if tracking_branch is None:
-            print("No tracking branch set, using 'master' as default base branch.")
-            tracking_branch = self.repo.heads.master  # Fallback to 'master'
+        # Find all branches in the local repository
+        all_branches = [head for head in self.repo.heads if head != current_branch]
+
+        most_recent_merge_base = None
+        most_recent_branch = None
+
+        for branch in all_branches:
+            try:
+                merge_base = self.repo.merge_base(branch, current_branch)
+                if merge_base:
+                    merge_base = merge_base[
+                        0
+                    ]  # GitPython might return a list of merge bases
+
+                # Update the most recent merge base if this one is more recent
+                if (most_recent_merge_base is None) or (
+                    merge_base.committed_date > most_recent_merge_base.committed_date
+                ):
+                    most_recent_merge_base = merge_base
+                    most_recent_branch = branch
+            except GitCommandError as e:
+                print(f"Error finding merge base with branch {branch}: {e}")
+                continue
+
+        if most_recent_merge_base is None:
+            print("No merge base found with any branch.")
+            return ""
 
         try:
-            # Find the merge base between the current branch and the tracking branch or master
-            merge_base = self.repo.merge_base(tracking_branch, current_branch)
-            if merge_base:
-                merge_base = merge_base[
-                    0
-                ]  # GitPython might return a list of merge bases
-
             # Generate the diff from the merge base to the latest commit of the feature branch
             feature_diff = self.repo.git.diff(
-                f"{merge_base}..{current_branch}", unified=0
+                f"{most_recent_merge_base}..{current_branch}"
             )
             return feature_diff
         except GitCommandError as e:
