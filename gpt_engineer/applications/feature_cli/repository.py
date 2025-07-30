@@ -41,6 +41,7 @@ class Repository:
         self.repo_path = repo_path
         self.repo = Repo(repo_path)
         assert not self.repo.bare
+        self._most_recent_merge_base = None
 
     def get_tracked_files(self) -> List[str]:
         """
@@ -53,6 +54,46 @@ class Repository:
             print(f"Error listing tracked files: {e}")
             return []
 
+    def find_most_recent_merge_base(self):
+        """
+        Find the most recent merge base between the current branch and all other branches.
+        """
+        if self._most_recent_merge_base is not None:
+            return self._most_recent_merge_base
+
+        current_branch = self.repo.active_branch
+
+        # Find all branches in the local repository
+        all_branches = [head for head in self.repo.heads if head != current_branch]
+
+        most_recent_merge_base = None
+        most_recent_branch = None
+
+        for branch in all_branches:
+            try:
+                merge_base = self.repo.merge_base(branch, current_branch)
+                if merge_base:
+                    merge_base = merge_base[
+                        0
+                    ]  # GitPython might return a list of merge bases
+
+                # Update the most recent merge base if this one is more recent
+                if (most_recent_merge_base is None) or (
+                    merge_base.committed_date > most_recent_merge_base.committed_date
+                ):
+                    most_recent_merge_base = merge_base
+                    most_recent_branch = branch
+            except GitCommandError as e:
+                print(f"Error finding merge base with branch {branch}: {e}")
+                continue
+
+        if most_recent_merge_base is None:
+            print("No merge base found with any branch.")
+            return None
+
+        self._most_recent_merge_base = most_recent_merge_base
+        return self._most_recent_merge_base
+
     def get_feature_branch_diff(self):
         """
         Get a consolidated diff for the entire feature branch from its divergence point.
@@ -60,26 +101,15 @@ class Repository:
         Returns:
         - str: The diff representing all changes from the feature branch since its divergence.
         """
+        merge_base = self.find_most_recent_merge_base()
+        if merge_base is None:
+            return ""
+
         current_branch = self.repo.active_branch
 
-        # Get the tracking branch (e.g., 'origin/master')
-        tracking_branch = current_branch.tracking_branch()
-        if tracking_branch is None:
-            print("No tracking branch set, using 'master' as default base branch.")
-            tracking_branch = self.repo.heads.master  # Fallback to 'master'
-
         try:
-            # Find the merge base between the current branch and the tracking branch or master
-            merge_base = self.repo.merge_base(tracking_branch, current_branch)
-            if merge_base:
-                merge_base = merge_base[
-                    0
-                ]  # GitPython might return a list of merge bases
-
             # Generate the diff from the merge base to the latest commit of the feature branch
-            feature_diff = self.repo.git.diff(
-                f"{merge_base}..{current_branch}", unified=0
-            )
+            feature_diff = self.repo.git.diff(f"{merge_base}..{current_branch}")
             return feature_diff
         except GitCommandError as e:
             print(f"Error generating diff: {e}")

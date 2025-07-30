@@ -53,7 +53,7 @@ class FeatureAgent:
         if not self.feature.has_description():
             self.initialize_feature()
         else:
-            update_feature(self.feature, self.repository)
+            update_feature(self.feature, self.file_selector)
 
     def run_task(self):
         print_feature_state(self.feature, self.file_selector)

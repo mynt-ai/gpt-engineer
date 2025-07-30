@@ -89,7 +89,9 @@ def build_files_context_string(feature, git_context, files):
 """
 
 
-def generate_suggested_tasks(ai: AI, feature, git_context, files) -> str:
+def generate_suggested_tasks(
+    ai: AI, feature, git_context, files, user_hint: str = None
+) -> str:
     system_prompt = """
 You are a software engineer work planning tool. Given a feature description, a list of tasks already completed, and sections of the code
 repository we are working on, suggest a list of implementation tasks to be done in order to move towards the end goal of completing the feature.
@@ -129,6 +131,8 @@ Respond in XML and nothing else.
 You may send as as little as 0 tasks and as many as 3. If you believe the feature is complete, send 0 tasks.
 """
 
+    if user_hint:
+        system_prompt += f"\nUser hint on what kind of tasks to suggest:\n{user_hint}\n"
     input = build_files_context_string(feature, git_context, files)
 
     ai.llm.callbacks.clear()  # silent
@@ -136,6 +140,9 @@ You may send as as little as 0 tasks and as many as 3. If you believe the featur
     messages = ai.start(system_prompt, input, step_name="suggest-tasks")
 
     ai.llm.callbacks.append(StreamingStdOutCallbackHandler())
+
+    if user_hint:
+        system_prompt += f"\nUser feedback on the generated tasks:\n{user_hint}\n"
 
     raw_response = messages[-1].content.strip()
 

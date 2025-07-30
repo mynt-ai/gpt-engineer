@@ -6,8 +6,6 @@ from pathlib import Path
 from typing import Union
 
 from gpt_engineer.core.default.disk_memory import DiskMemory
-from gpt_engineer.core.default.paths import memory_path
-from gpt_engineer.applications.feature_cli.file_selection import FileSelector
 from gpt_engineer.applications.feature_cli.repository import Repository
 
 

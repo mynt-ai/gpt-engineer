@@ -49,7 +49,7 @@ def feature(
 
     feature = Feature(project_path, repository)
 
-    file_selector = FileSelector(project_path, repository)
+    file_selector = FileSelector(project_path, repository, name="feature_files.yml")
 
     agent = FeatureAgent(ai, project_path, feature, repository, file_selector)
 
@@ -82,7 +82,7 @@ def chat(
 
     feature = Feature(project_path, repository)
 
-    file_selector = FileSelector(project_path, repository)
+    file_selector = FileSelector(project_path, repository, "chat_files.yml")
 
     chat_agent = ChatAgent(ai, project_path, feature, repository, file_selector)
 

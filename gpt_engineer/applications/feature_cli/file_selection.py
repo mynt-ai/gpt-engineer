@@ -105,7 +105,7 @@ def file_selection_to_commented_yaml(selection: FileSelection) -> str:
     if not selection.excluded_files:
         tree = paths_to_tree(selection.included_files)
 
-        return yaml.dump(tree, sort_keys=False)
+        return yaml.dump(tree, sort_keys=False, width=10000)
 
     all_files = list(selection.included_files) + list(selection.excluded_files)
 
@@ -131,7 +131,7 @@ def file_selection_to_commented_yaml(selection: FileSelection) -> str:
 
     mark_excluded_files(current_tree)
 
-    content = yaml.dump(current_tree, sort_keys=False)
+    content = yaml.dump(current_tree, sort_keys=False, width=10000)
 
     # Find all files marked for commenting - add comment and remove the mark.
     def comment_marked_files(yaml_content):
@@ -155,11 +155,13 @@ class FileSelector:
     Manages the active files in a project directory and creates a YAML file listing them.
     """
 
-    def __init__(self, project_path: str, repository: Repository):
+    def __init__(
+        self, project_path: str, repository: Repository, name: str = "files.yml"
+    ):
         self.project_path = project_path
         self.ai = AI("gpt-4o", temperature=0)
         self.repository = repository
-        self.yaml_path = Path(project_path) / ".feature" / "files.yml"
+        self.yaml_path = Path(memory_path(project_path)) / name
 
         if os.path.exists(self.yaml_path):
             return
