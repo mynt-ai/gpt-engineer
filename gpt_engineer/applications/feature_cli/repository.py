@@ -41,6 +41,7 @@ class Repository:
         self.repo_path = repo_path
         self.repo = Repo(repo_path)
         assert not self.repo.bare
+        self._most_recent_merge_base = None
 
     def get_tracked_files(self) -> List[str]:
         """
@@ -53,13 +54,13 @@ class Repository:
             print(f"Error listing tracked files: {e}")
             return []
 
-    def get_feature_branch_diff(self):
+    def find_most_recent_merge_base(self):
         """
-        Get a consolidated diff for the entire feature branch from its divergence point.
+        Find the most recent merge base between the current branch and all other branches.
+        """
+        if self._most_recent_merge_base is not None:
+            return self._most_recent_merge_base
 
-        Returns:
-        - str: The diff representing all changes from the feature branch since its divergence.
-        """
         current_branch = self.repo.active_branch
 
         # Find all branches in the local repository
@@ -88,13 +89,27 @@ class Repository:
 
         if most_recent_merge_base is None:
             print("No merge base found with any branch.")
+            return None
+
+        self._most_recent_merge_base = most_recent_merge_base
+        return self._most_recent_merge_base
+
+    def get_feature_branch_diff(self):
+        """
+        Get a consolidated diff for the entire feature branch from its divergence point.
+
+        Returns:
+        - str: The diff representing all changes from the feature branch since its divergence.
+        """
+        merge_base = self.find_most_recent_merge_base()
+        if merge_base is None:
             return ""
+
+        current_branch = self.repo.active_branch
 
         try:
             # Generate the diff from the merge base to the latest commit of the feature branch
-            feature_diff = self.repo.git.diff(
-                f"{most_recent_merge_base}..{current_branch}"
-            )
+            feature_diff = self.repo.git.diff(f"{merge_base}..{current_branch}")
             return feature_diff
         except GitCommandError as e:
             print(f"Error generating diff: {e}")
